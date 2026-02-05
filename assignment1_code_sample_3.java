@@ -9,20 +9,28 @@ import java.util.Scanner;
 
 public class VulnerableApp {
 
-    private static final String DB_URL = "jdbc:mysql://mydatabase.com/mydb";
-    private static final String DB_USER = "admin";
-    private static final String DB_PASSWORD = "secret123";
+    private static final String DB_URL = System.getenv("DB_URL");
+    private static final String DB_USER = System.getenv("DB_USER");
+    private static final String DB_PASSWORD = System.getenv("DB_PASSWORD");
 
-    public static String getUserInput() {
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter your name: ");
-        return scanner.nextLine();
+public static String getUserInput() {
+    Scanner scanner = new Scanner(System.in);
+    System.out.print("Enter your name: ");
+    String input = scanner.nextLine();
+
+
+    if (!input.matches("[a-zA-Z ]{1,50}")) {
+        throw new IllegalArgumentException("Invalid input");
     }
+
+    return input;
+}
+
 
     public static void sendEmail(String to, String subject, String body) {
         try {
             String command = String.format("echo %s | mail -s \"%s\" %s", body, subject, to);
-            Runtime.getRuntime().exec(command);
+            System.out.println("Email sending simulated safely.");
         } catch (Exception e) {
             System.out.println("Error sending email: " + e.getMessage());
         }
@@ -31,7 +39,7 @@ public class VulnerableApp {
     public static String getData() {
         StringBuilder result = new StringBuilder();
         try {
-            URL url = new URL("http://insecure-api.com/get-data");
+            URL url = new URL("https://secure-api.com/get-data");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
 
@@ -52,17 +60,21 @@ public class VulnerableApp {
     }
 
     public static void saveToDb(String data) {
-        String query = "INSERT INTO mytable (column1, column2) VALUES ('" + data + "', 'Another Value')";
+
+        String query = "INSERT INTO mytable (column1, column2) VALUES (?, ?)";
+        
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-             Statement stmt = conn.createStatement()) {
-
-            stmt.executeUpdate(query);
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+        
+            pstmt.setString(1, data);
+            pstmt.setString(2, "Another Value");
+            pstmt.executeUpdate();
+        
             System.out.println("Data saved to database.");
-
         } catch (SQLException e) {
             System.out.println("Database error: " + e.getMessage());
         }
-    }
+            
 
     public static void main(String[] args) {
         String userInput = getUserInput();
@@ -70,4 +82,5 @@ public class VulnerableApp {
         saveToDb(data);
         sendEmail("admin@example.com", "User Input", userInput);
     }
+
 }
